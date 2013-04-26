@@ -193,6 +193,8 @@ class YouTubeSilo extends Plugin implements MediaSilo
 			$user = User::identify();
 			$user->info->youtube__width = '425';
 			$user->info->youtube__height = '355';
+			$user->info->youtube__fullscreen = true;
+			$user->info->youtube__showinfo = true;
 			$user->info->commit();
 		}
 	}
@@ -371,6 +373,8 @@ class YouTubeSilo extends Plugin implements MediaSilo
 					$form->append('text', 'username', 'user:youtube__username', 'YouTube Username:');
 					$form->append('text', 'width', 'user:youtube__width', 'Video Width:');
 					$form->append('text', 'height', 'user:youtube__height', 'Video Height:');
+					$form->append('checkbox', 'fullscreen', 'user:youtube__fullscreen', 'Fullscreen:');
+					$form->append('checkbox', 'showinfo', 'user:youtube__showinfo', 'Show Infobar:');
 					$form->append('submit', 'save', 'Save');
 					$form->set_option('success_message', _t('Options saved'));
 					$form->out();
@@ -385,14 +389,38 @@ class YouTubeSilo extends Plugin implements MediaSilo
 			//TODO Use cache for the dimensions variables
 			$width = User::identify()->info->youtube__width;
 			$height = User::identify()->info->youtube__height;
+			$fullscreen = User::identify()->info->youtube__fullscreen;
+			$showinfo = User::identify()->info->youtube__showinfo;
+
+			$params = '';
+			if ($fullscreen || !$showinfo) {
+				$params = '?';
+  			$params .= $fullscreen ? 'fs=1' : '';
+
+  			if ($fullscreen && !$showinfo) {
+  				$params .= '&';
+  			}
+
+  			$params .= $showinfo ? '' : 'showinfo=0';
+			}
+
+			$fullscreen = (string)$fullscreen;
+			$showinfo = (string)$showinfo;
+
 			echo <<< YOUTUBE
 			<script type="text/javascript">
 				habari.media.output.youtube = {insert: function(fileindex, fileobj) {
-					habari.editor.insertSelection('<object width="{$width}" height="{$height}"><param name="movie" value="' + fileobj.url + '"></param><param name="wmode" value="transparent"></param><embed src="' + fileobj.url + '" type="application/x-shockwave-flash" wmode="transparent" width="{$width}" height="{$height}"></embed></object>');
+					habari.editor.insertSelection('<div class="youtube-wrapper">\\n' +
+						'  <iframe class="youtube-player" ' +
+						'src="http://www.youtube.com/embed/' + fileobj.basename +
+						'{$params}" allowfullscreen="" ' +
+						'style="width:100%;"></iframe>\\n' +
+						'</div>');
 				}}
 				habari.media.preview.youtube = function(fileindex, fileobj) {
 					var stats = '';
-					return '<div class="mediatitle">' + fileobj.title + '</div><img src="' + fileobj.thumbnail_url + '"><div class="mediastats"> ' + stats + '</div>';
+					return '<div class="mediatitle">' + fileobj.title + '</div><img src="' +
+					       fileobj.thumbnail_url + '"><div class="mediastats"> ' + stats + '</div>';
 				}
 			</script>
 YOUTUBE;
